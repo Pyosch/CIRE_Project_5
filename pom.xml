@@ -5,7 +5,7 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>sample-broker</artifactId>
+  <artifactId>cire_bro</artifactId>
   <packaging>jar</packaging>
 
   <name>sample-broker</name>
