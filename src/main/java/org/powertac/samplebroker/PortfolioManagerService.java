@@ -188,26 +188,6 @@ public String toString() {
           description = "Default daily meter charge")
   private double defaultPeriodicPayment = -1.0;
 
-  private ArrayList<PowerType> targetPowerTypes = new ArrayList<PowerType>() {
-    private static final long serialVersionUID = 2102206276264136536L;
-
-    {
-      // Green market
-      add(PowerType.SOLAR_PRODUCTION);
-      add(PowerType.WIND_PRODUCTION);
-      add(PowerType.ELECTRIC_VEHICLE);
-      add(PowerType.RUN_OF_RIVER_PRODUCTION);
-      
-      // Others
-      add(PowerType.CONSUMPTION);
-      add(PowerType.BATTERY_STORAGE);
-      add(PowerType.CHP_PRODUCTION);
-      add(PowerType.FOSSIL_PRODUCTION);
-    }
-  };
-
-  private HashMap<PowerType, TariffSpecification> activeTariffs = new HashMap<PowerType, TariffSpecification>();
-
   /**
    * Default constructor.
    */
@@ -298,10 +278,6 @@ public String toString() {
   private void addCompetingTariff (TariffSpecification spec)
   {
     getCompetingTariffs(spec.getPowerType()).add(spec);
-  }
-
-  private int getNumberOfCustomers() {
-    return this.customerRepo.count();
   }
 
   /**
@@ -481,58 +457,6 @@ public String toString() {
     if (customerSubscriptions.size() == 0) {
       // we (most likely) have no tariffs
       createInitialTariffs();
-    } else
-      titForTat();
-
-    for (CustomerRecord record : notifyOnActivation)
-      record.activate();
-  }
-
-  private void titForTat() {
-    for (PowerType powerType : targetPowerTypes) {
-      List<TariffSpecification> tariffSpecs = competingTariffs.get(powerType);
-      if (tariffSpecs != null) {
-        TariffSpecification bestTSForCustomer = null;
-        double bestForCustomer = Double.NEGATIVE_INFINITY;
-        for (TariffSpecification ts : competingTariffs.get(powerType)) {
-          // getPeriodicPayment - A negative number indicates that the customer pays the
-          // broker.
-          // getEarlyWithdrawPayment - A negative number indicates that the customer pays
-          // the broker.
-          // getSignupPayment - this is a positive number if the broker pays the customer.
-          // Quanto mais positivos estes numeros melhor pro cliente
-          double tsEvalForCustomer = ts.getPeriodicPayment() + ts.getEarlyWithdrawPayment() + ts.getSignupPayment();
-          if (tsEvalForCustomer > bestForCustomer)
-            bestTSForCustomer = ts;
-        }
-
-        TariffSpecification myTS = activeTariffs.get(powerType);
-        if (myTS != null) {
-          double mytsEval = myTS.getPeriodicPayment() + myTS.getEarlyWithdrawPayment() + myTS.getSignupPayment();
-          if (mytsEval > bestForCustomer)
-            bestTSForCustomer = myTS;
-        }
-
-        System.out.println("For " + powerType + " the best ts is " + bestTSForCustomer);
-        if (bestTSForCustomer.getBroker() != brokerContext.getBroker()) { // its not ours
-          // building a better tariff for the customer
-          TariffSpecification spec = new TariffSpecification(brokerContext.getBroker(), powerType);
-
-          double ourSignUp = Math.abs(bestTSForCustomer.getSignupPayment()) * 3;
-          double ourPerPayment = -Math.abs(bestTSForCustomer.getPeriodicPayment()) * 2.5;
-          double ourPenalty = -Math.abs(bestTSForCustomer.getEarlyWithdrawPayment()) * 2;
-          spec.withSignupPayment(ourSignUp);
-          spec.withPeriodicPayment(ourPerPayment);
-          spec.withEarlyWithdrawPayment(ourPenalty);
-
-          tariffRepo.addSpecification(spec);
-          brokerContext.sendMessage(spec);
-
-          activeTariffs.put(powerType, spec);
-          System.out.println("Launching tariff:\n" + spec + "\n");
-        } else
-          System.out.println("Best tariff for " + powerType + " belongs to us, do nothing\n");
-      }
     }
     else {
       // we have some, are they good enough?
@@ -552,16 +476,17 @@ public String toString() {
     // create a tariff that's better than what's available
     for (PowerType pt : customerProfiles.keySet()) {
       // we'll just do fixed-rate tariffs for now
-      double rateValue = ((marketPrice + fixedPerKwh) * (1.0 + defaultMargin));
+      benchmarkPrice = ((marketPrice + fixedPerKwh) * (1.0 + defaultMargin));
+      double rateValue = benchmarkPrice;
       double periodicValue = defaultPeriodicPayment;
       if (pt.isProduction()) {
         rateValue = -2.0 * marketPrice;
         periodicValue /= 2.0;
       }
-      if (pt.isStorage()) {
-        rateValue *= 0.9; // Magic number
-        periodicValue = 0.0;
-      }
+      //if (pt.isStorage()) {
+      //  rateValue *= 0.9; // Magic number
+      //  periodicValue = 0.0;
+      //}
       if (pt.isInterruptible()) {
         rateValue *= 0.7; // Magic number!! price break for interruptible
       }
@@ -578,7 +503,8 @@ public String toString() {
       if (pt.isStorage()) {
         // add a RegulationRate
         RegulationRate rr = new RegulationRate();
-        rr.withUpRegulationPayment(-rateValue * 1.2).withDownRegulationPayment(rateValue * 0.4); // magic numbers
+        rr.withUpRegulationPayment(-rateValue * 1.45)
+            .withDownRegulationPayment(rateValue * 0.5); // magic numbers
         spec.addRate(rr);
       }
       spec.addRate(rate);
@@ -821,7 +747,7 @@ public String toString() {
       int index = getIndex(rawIndex);
       double kwhPerCustomer = 0.0;
       if (subscribedPopulation > 0) {
-        kwhPerCustomer = kwh / (double) subscribedPopulation;
+        kwhPerCustomer = kwh / (double)subscribedPopulation;
       }
       double oldUsage = usage[index];
       if (oldUsage == 0.0) {
@@ -841,14 +767,15 @@ public String toString() {
         PortfolioManagerService.log.warn("usage requested for negative index " + index);
         index = 0;
       }
-      return (usage[getIndex(index)] * (double) subscribedPopulation);
+      return (usage[getIndex(index)] * (double)subscribedPopulation);
     }
 
     // we assume here that timeslot index always matches the number of
     // timeslots that have passed since the beginning of the simulation.
-    int getIndex(Instant when) {
-      int result = (int) ((when.getMillis() - timeService.getBase())
-          / (Competition.currentCompetition().getTimeslotDuration()));
+    int getIndex (Instant when)
+    {
+      int result = (int)((when.getMillis() - timeService.getBase()) /
+                         (Competition.currentCompetition().getTimeslotDuration()));
       return result;
     }
 
