@@ -15,7 +15,6 @@
  */
 package org.powertac.samplebroker;
 
-import java.util.ArrayList;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.powertac.common.BankTransaction;
@@ -26,7 +25,6 @@ import org.powertac.samplebroker.core.BrokerPropertiesService;
 import org.powertac.samplebroker.interfaces.BrokerContext;
 import org.powertac.samplebroker.interfaces.Initializable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.powertac.samplebroker.services.PrintService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,7 +32,9 @@ import org.springframework.stereotype.Service;
  * @author John Collins
  */
 @Service
-public class ContextManagerService implements Initializable {
+public class ContextManagerService
+implements Initializable
+{
   static private Logger log = LogManager.getLogger(ContextManagerService.class);
 
   @Autowired
@@ -46,22 +46,10 @@ public class ContextManagerService implements Initializable {
   private double cash = 0;
   
 
-  private ArrayList<Double> cashArray = new ArrayList<>();
-
-  // @SuppressWarnings("unchecked")
+//  @SuppressWarnings("unchecked")
   @Override
-  public void initialize(BrokerContext broker) {
-    if (!PrintService.getInstance().isInitialized()) {
-      PrintService.getInstance().startCSV();
-      Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-
-        @Override
-        public void run() {
-          PrintService.getInstance().printData();
-        }
-      }));
-    }
-
+  public void initialize (BrokerContext broker)
+  {
     master = broker;
     propertiesService.configureMe(this);
 // --- no longer needed ---
@@ -86,14 +74,13 @@ public class ContextManagerService implements Initializable {
   public void handleMessage (BankTransaction btx)
   {
     // TODO - handle this
-    log.info("Bank transaction: " + btx.toString());
   }
 
   /**
    * CashPosition updates our current bank balance.
    */
-  public void handleMessage(CashPosition cp) {
-    cashArray.add(cp.getBalance());
+  public void handleMessage (CashPosition cp)
+  {
     cash = cp.getBalance();
     log.info("Cash position: " + cash);
   }
@@ -102,13 +89,9 @@ public class ContextManagerService implements Initializable {
    * DistributionReport gives total consumption and production for the timeslot,
    * summed across all brokers.
    */
-  public void handleMessage(DistributionReport dr) {
-    PrintService.getInstance().addDistributionReport(dr.getTimeslot(), dr.getTotalProduction(),
-        dr.getTotalConsumption());
-    // System.out.println("For timeslot "+ dr.getTimeslot() +" \n Consumption: "+
-    // dr.getTotalConsumption() + "\n Production: "+dr.getTotalProduction());
-    // // TODO - use this data
-    // log.info("Distribution Report: " + dr.toString());
+  public void handleMessage (DistributionReport dr)
+  {
+    // TODO - use this data
   }
   
   /**
@@ -119,7 +102,6 @@ public class ContextManagerService implements Initializable {
   public void handleMessage (Competition comp)
   {
     // TODO - process competition properties
-    log.info("Competition Properties: " + comp.toString());
   }
 
   /**
@@ -128,6 +110,5 @@ public class ContextManagerService implements Initializable {
   public void handleMessage (java.util.Properties serverProps)
   {
     // TODO - adapt to the server setup.
-    log.info("Server props: " + serverProps.toString());
   }
 }
