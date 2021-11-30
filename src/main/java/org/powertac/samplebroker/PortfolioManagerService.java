@@ -35,9 +35,6 @@ import org.powertac.common.Tariff;
 import org.powertac.common.TariffSpecification;
 import org.powertac.common.TariffTransaction;
 import org.powertac.common.TimeService;
-import org.powertac.common.WeatherForecast;
-import org.powertac.common.WeatherForecastPrediction;
-import org.powertac.common.WeatherReport;
 import org.powertac.common.config.ConfigurableValue;
 import org.powertac.common.enumerations.PowerType;
 import org.powertac.common.msg.BalancingControlEvent;
@@ -57,9 +54,6 @@ import org.powertac.samplebroker.interfaces.MarketManager;
 import org.powertac.samplebroker.interfaces.PortfolioManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import org.powertac.common.repo.WeatherReportRepo;
-import org.powertac.common.repo.WeatherForecastRepo;
 
 /**
  * Handles portfolio-management responsibilities for the broker. This
@@ -99,63 +93,7 @@ implements PortfolioManager, Initializable, Activatable
 
   @Autowired
   private TimeService timeService;
-  
-  @Override
-public String toString() {
-	return "PortfolioManagerService [brokerContext=" + brokerContext + ", propertiesService=" + propertiesService
-			+ ", timeslotRepo=" + timeslotRepo + ", tariffRepo=" + tariffRepo + ", customerRepo=" + customerRepo
-			+ ", marketManager=" + marketManager + ", timeService=" + timeService + ", weatherReportRepo="
-			+ weatherReportRepo + ", weatherForecastRepo=" + weatherForecastRepo + ", forecasts=" + forecasts
-			+ ", customerProfiles=" + customerProfiles + ", customerSubscriptions=" + customerSubscriptions
-			+ ", competingTariffs=" + competingTariffs + ", benchmarkPrice=" + benchmarkPrice + ", notifyOnActivation="
-			+ notifyOnActivation + ", defaultMargin=" + defaultMargin + ", fixedPerKwh=" + fixedPerKwh
-			+ ", defaultPeriodicPayment=" + defaultPeriodicPayment + "]";
-}
 
-@Autowired
-  private WeatherReportRepo weatherReportRepo;
-  
-  @Autowired
-  private WeatherForecastRepo weatherForecastRepo;
-  
-   
- 
-  public synchronized void handleMessage (WeatherReport report)
-  {
-	  weatherReportRepo.add(report);
-	   double tempeReport = weatherReportRepo.currentWeatherReport().getTemperature(); 
-	   int timeslotReport = weatherReportRepo.currentWeatherReport().getTimeslotIndex();
-	   System.out.println("Report temp="+ tempeReport +" at "+ timeslotReport);
-	   log.info("Report temp="+ tempeReport +" at "+ timeslotReport);
-  } 
-  
-  private HashMap<Integer,Map<Integer,ForecastRecord>> forecasts;
-  
-  public synchronized void handleMessage (WeatherForecast forecast)
-  
-  { 
-	  if(this.timeslotRepo.currentTimeslot().getSerialNumber() < 700) 
-	{ 
-	   HashMap<Integer, ForecastRecord> forecas = new HashMap<>(); 
-	   for(WeatherForecastPrediction wfp: 
-	forecast.getPredictions()) { 
-	    forecas.put(wfp.getForecastTime() + 
-	forecast.getTimeslotIndex(), new ForecastRecord(wfp.getCloudCover(),wfp.getTemperature(),wfp.getWindDirection(
-	),wfp.getWindSpeed())); 
-	   } 
-	   this.forecasts.put(forecast.getTimeslotIndex(), forecas); 
-	  }
-  }
-  //{
-	//  weatherForecastRepo.add(forecast);
-	 // List<WeatherForecastPrediction> listForecast =weatherForecastRepo.currentWeatherForecast().getPredictions();
-	 // double tempeForecast=((WeatherForecastPrediction) listForecast).getTemperature();
-	 // int timeForecast=((WeatherForecastPrediction) listForecast).getForecastTime();
-	  //System.out.println("Forecast temp="+ tempeForecast +" at "+ timeForecast);
-	  //log.info("Forecast temp="+ tempeForecast +" at "+ timeForecast);
-  //} 
-  
-  
   // ---- Portfolio records -----
   // Customer records indexed by power type and by tariff. Note that the
   // CustomerRecord instances are NOT shared between these structures, because
@@ -785,43 +723,3 @@ public String toString() {
     }
   }
 }
-  
-  class ForecastRecord { 
-	  
-	  private double cloudCover; 
-	  private double temperature; 
-	  private double windDirection; 
-	  private double windSpeed; 
-	  public ForecastRecord(double cloudCover, double temperature, double 
-	 windDirection, double windSpeed) { 
-	   super(); 
-	   this.cloudCover = cloudCover; 
-	   this.temperature = temperature; 
-	   this.windDirection = windDirection; 
-	   this.windSpeed = windSpeed; 
-	  } 
-	  public double getCloudCover() { 
-	   return cloudCover; 
-	  } 
-	  public void setCloudCover(double cloudCover) { 
-	   this.cloudCover = cloudCover; 
-	  } 
-	  public double getTemperature() { 
-	   return temperature; 
-	  } 
-	  public void setTemperature(double temperature) { 
-	   this.temperature = temperature; 
-	  } 
-	  public double getWindDirection() { 
-	   return windDirection; 
-	  } 
-	  public void setWindDirection(double windDirection) { 
-	   this.windDirection = windDirection; 
-	  } 
-	  public double getWindSpeed() { 
-	   return windSpeed; 
-	  } 
-	  public void setWindSpeed(double windSpeed) { 
-	   this.windSpeed = windSpeed; 
-	  } 
-	 }  
