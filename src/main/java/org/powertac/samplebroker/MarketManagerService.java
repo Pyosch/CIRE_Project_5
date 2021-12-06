@@ -18,6 +18,7 @@ package org.powertac.samplebroker;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.SortedSet;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +31,7 @@ import org.powertac.common.MarketPosition;
 import org.powertac.common.MarketTransaction;
 import org.powertac.common.Order;
 import org.powertac.common.Orderbook;
+import org.powertac.common.OrderbookOrder;
 import org.powertac.common.Timeslot;
 import org.powertac.common.WeatherForecast;
 import org.powertac.common.WeatherForecastPrediction;
@@ -122,7 +124,7 @@ implements MarketManager, Initializable, Activatable
   private Random randomGen; // to randomize bid/ask prices
 
   // Bid recording
-  private HashMap<Integer, Order> lastOrder;
+  //private HashMap<Integer, Order> lastOrder;
   
   private HashMap<Integer, ArrayList<Order>> lastOrders;
   private double[] marketMWh;
@@ -149,7 +151,7 @@ implements MarketManager, Initializable, Activatable
   public void initialize (BrokerContext broker)
   {
     this.broker = broker;
-    lastOrder = new HashMap<>();
+    lastOrders = new HashMap<>();
     propertiesService.configureMe(this);
     System.out.println("  name=" + broker.getBrokerUsername());
     if (seedNumber != null) {
@@ -270,11 +272,13 @@ implements MarketManager, Initializable, Activatable
   public synchronized void handleMessage (MarketTransaction tx)
   {
     // reset price escalation when a trade fully clears.
-    Order lastTry = lastOrder.get(tx.getTimeslotIndex());
-    if (lastTry == null) // should not happen
-      log.error("order corresponding to market tx " + tx + " is null");
-    else if (tx.getMWh() == lastTry.getMWh()) // fully cleared
-      lastOrder.put(tx.getTimeslotIndex(), null);
+    ArrayList<Order> lastTries = lastOrders.get(tx.getTimeslotIndex());
+    for (Order lastTry : lastTries) {
+      if (tx.getMWh() == lastTry.getMWh()) {
+        System.out.println("Cleared "+lastTry.getMWh() + " for timeslot "+tx.getTimeslotIndex());
+        lastTries.remove(lastTry);
+      }
+    }
   }
   
   /**
@@ -282,8 +286,18 @@ implements MarketManager, Initializable, Activatable
    * from which a broker can construct approximate supply and demand curves
    * for the following timeslot.
    */
-  public synchronized void handleMessage (Orderbook orderbook)
-  {
+  public synchronized void handleMessage(Orderbook orderbook) {
+    log.info("Order book received");
+    SortedSet<OrderbookOrder> asks = orderbook.getAsks();
+    SortedSet<OrderbookOrder> bids = orderbook.getBids();
+    double totalAmountAsks = 0;
+    double totalAmountBids = 0;
+    for (OrderbookOrder ask : asks) {
+      totalAmountAsks += ask.getMWh();
+    }
+    for (OrderbookOrder bid : bids) {
+      totalAmountBids += bid.getMWh();
+    }
   }
   
   /**
@@ -334,51 +348,58 @@ implements MarketManager, Initializable, Activatable
 	    System.out.println("Timeslot " + timeslotRepo.currentTimeslot().getSerialNumber());
 	    applyWholeSaleStrategy();
 	  }
+  
+  /**
+   * TNE WholeSaleStrategy
+   * call API to get predicted prices and amounts
+   * submit order if price is below average price
+   */
   private void applyWholeSaleStrategy() {
-	    Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
-	    //place first 24h orders
-	    // if(this.currentTimeslot < 386){
-	    //  MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
-	    //   if(energyBalance == 0){
-	    //     submitOrder(100, -20, this.currentTimeslot + 1);
-	    //   }
-	    //   else if(energyBalance > 0){
-	    //     submitOrder(-energyBalance * 1.5, 25, this.currentTimeslot + 1);
-	    //   }
-	    //   else if(energyBalance < 0){
-	    //     submitOrder(-energyBalance * 1.5, -20, this.currentTimeslot + 1);
-	    //   }
-	    // }
-	    // else 
-	    if (this.currentTimeslot == 386) {
-	      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-	      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-	      Double averagePrice = averagePrice(prices);
-	      for(Integer i=0; i<prices.size(); i++) {
-	        if(prices.get(i) <= averagePrice) {
-	          submitOrder(amounts.get(i), -prices.get(i) * 0.8, 386+i+1);
-	        }
-	      }      
-	    }
-	    else if(this.currentTimeslot > 386){
-	      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-	      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-	      Double averagePrice = averagePrice(prices);
-	      int lastIdx = prices.size() - 1;
-	      System.out.println("Energy balance: " + energyBalance);
-	      if(energyBalance == 0){
-	        if(prices.get(lastIdx) <= averagePrice) {
-	          submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
-	        }
-	      }
-	      // else if(energyBalance > 0){
-	      //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
-	      // }
-	      else if(energyBalance < 0){
-	        submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
-	      }
-	    }
-	  }
+    Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
+    //place first 24h orders
+    // if(this.currentTimeslot < 386){
+    //  MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
+    //   if(energyBalance == 0){
+    //     submitOrder(100, -20, this.currentTimeslot + 1);
+    //   }
+    //   else if(energyBalance > 0){
+    //     submitOrder(-energyBalance * 1.5, 25, this.currentTimeslot + 1);
+    //   }
+    //   else if(energyBalance < 0){
+    //     submitOrder(-energyBalance * 1.5, -20, this.currentTimeslot + 1);
+    //   }
+    // }
+    // else 
+    if (this.currentTimeslot == 386) {
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      Double averagePrice = averagePrice(prices);
+      for(Integer i=0; i<prices.size(); i++) {
+        if(prices.get(i) <= averagePrice) {
+          submitOrder(amounts.get(i), -prices.get(i) * 0.8, 386+i+1);
+        }
+      }      
+    }
+    else if(this.currentTimeslot > 386){
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      Double averagePrice = averagePrice(prices);
+      int lastIdx = prices.size() - 1;
+      System.out.println("Energy balance: " + energyBalance);
+      if(energyBalance == 0){
+        if(prices.get(lastIdx) <= averagePrice) {
+          submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
+        }
+      }
+      // else if(energyBalance > 0){
+      //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
+      // }
+      else if(energyBalance < 0){
+        submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
+      }
+    }
+  }
+
   private Double averagePrice(ArrayList<Double> prices) {
       Double sum = 0.0;
       if(!prices.isEmpty()) {
@@ -390,54 +411,52 @@ implements MarketManager, Initializable, Activatable
       return sum;
   }
   
-  private double computeLimitPrice(int timeslot) {
-	    // set price between oldLimitPrice and maxPrice, according to number of
-	    // remaining chances we have to get what we need.
-	    double newLimitPrice = 50; // default value
-	    double maxPrice = 20;
-	    int current = timeslotRepo.currentSerialNumber();
-	    int remainingTries = (timeslot - current);
-	    if (remainingTries > 0) {
-	      double range = (maxPrice - oldLimitPrice) * 2.0 / (double) remainingTries;
-	      double computedPrice = oldLimitPrice + randomGen.nextDouble() * range;
-	      oldLimitPrice = computedPrice;
-	      return Math.max(newLimitPrice, computedPrice);
-	    }
-	    return 0;
-	  }
-  
-  private void buyInWholesale(ArrayList<Double> prices, ArrayList<Double> amounts) {
-	    System.out.println("Buying");
-	    Pair<Integer, Integer> pricesMaxDiff = MaxDifference.maxDiff(prices);
-	    Integer maxPriceIndex = pricesMaxDiff.cdr();
-	    Integer minPriceIndex = pricesMaxDiff.car();
-	    sellingIndex = currentTimeslot + maxPriceIndex + 1;
-	    buyingIndex = this.currentTimeslot + minPriceIndex + 1;
-	    sellingPrice = prices.get(maxPriceIndex);
-	    Double predictedMaxAmount = amounts.get(maxPriceIndex);
-	    System.out.println("Min price index: " + minPriceIndex + "; max price index: " + maxPriceIndex);
-	    
-	    Double alreadyClearedQuantityForMax = 0.0;
-	    if (maxPriceIndex < 23) {
-	      alreadyClearedQuantityForMax = clearedFuturesRepo.findById(currentTimeslot + maxPriceIndex + 1).getQuantity();
-	    }
-	    buyingOrderQuantity = predictedMaxAmount - alreadyClearedQuantityForMax;
-	    submitOrder(buyingOrderQuantity, -prices.get(minPriceIndex)*buyPriceMultiplier, buyingIndex);  
-	  }
-
-	  private void sellInWholesale() {
-	    System.out.println("Selling");
-	    submitOrder(-buyingOrderQuantity, sellingPrice, sellingIndex);
-	  }
-
-  
+//  private double computeLimitPrice(int timeslot) {
+//	    // set price between oldLimitPrice and maxPrice, according to number of
+//	    // remaining chances we have to get what we need.
+//	    double newLimitPrice = 50; // default value
+//	    double maxPrice = 20;
+//	    int current = timeslotRepo.currentSerialNumber();
+//	    int remainingTries = (timeslot - current);
+//	    if (remainingTries > 0) {
+//	      double range = (maxPrice - oldLimitPrice) * 2.0 / (double) remainingTries;
+//	      double computedPrice = oldLimitPrice + randomGen.nextDouble() * range;
+//	      oldLimitPrice = computedPrice;
+//	      return Math.max(newLimitPrice, computedPrice);
+//	    }
+//	    return 0;
+//	  }
+//  
+//  private void buyInWholesale(ArrayList<Double> prices, ArrayList<Double> amounts) {
+//	    System.out.println("Buying");
+//	    Pair<Integer, Integer> pricesMaxDiff = MaxDifference.maxDiff(prices);
+//	    Integer maxPriceIndex = pricesMaxDiff.cdr();
+//	    Integer minPriceIndex = pricesMaxDiff.car();
+//	    sellingIndex = currentTimeslot + maxPriceIndex + 1;
+//	    buyingIndex = this.currentTimeslot + minPriceIndex + 1;
+//	    sellingPrice = prices.get(maxPriceIndex);
+//	    Double predictedMaxAmount = amounts.get(maxPriceIndex);
+//	    System.out.println("Min price index: " + minPriceIndex + "; max price index: " + maxPriceIndex);
+//	    
+//	    Double alreadyClearedQuantityForMax = 0.0;
+//	    if (maxPriceIndex < 23) {
+//	      alreadyClearedQuantityForMax = clearedFuturesRepo.findById(currentTimeslot + maxPriceIndex + 1).getQuantity();
+//	    }
+//	    buyingOrderQuantity = predictedMaxAmount - alreadyClearedQuantityForMax;
+//	    submitOrder(buyingOrderQuantity, -prices.get(minPriceIndex)*buyPriceMultiplier, buyingIndex);  
+//	  }
+//
+//	  private void sellInWholesale() {
+//	    System.out.println("Selling");
+//	    submitOrder(-buyingOrderQuantity, sellingPrice, sellingIndex);
+//	  }
 
   /**
    * Composes and submits the appropriate order for the given timeslot.
    */
   private void submitOrder(double neededMWh, double price, int timeslot) {
 
-    System.out.println("new order for " + neededMWh + " at " + price + " for timeslot "+timeslot);
+    System.out.println("submitorder: new order for " + neededMWh + " at " + price + " for timeslot "+timeslot);
     Order order = new Order(broker.getBroker(), timeslot, neededMWh, price);
     if (lastOrders.get(timeslot) == null) {
       lastOrders.put(timeslot, new ArrayList<>());
@@ -449,49 +468,49 @@ implements MarketManager, Initializable, Activatable
   /**
    * Computes a limit price with a random element. 
    */
-  private Double computeLimitPrice (int timeslot,
-                                    double amountNeeded)
-  {
-    log.debug("Compute limit for " + amountNeeded + 
-              ", timeslot " + timeslot);
-    // start with default limits
-    Double oldLimitPrice;
-    double minPrice;
-    if (amountNeeded > 0.0) {
-      // buying
-      oldLimitPrice = buyLimitPriceMax;
-      minPrice = buyLimitPriceMin;
-    }
-    else {
-      // selling
-      oldLimitPrice = sellLimitPriceMax;
-      minPrice = sellLimitPriceMin;
-    }
-    // check for escalation
-    Order lastTry = lastOrder.get(timeslot);
-    if (lastTry != null)
-      log.debug("lastTry: " + lastTry.getMWh() +
-                " at " + lastTry.getLimitPrice());
-    if (lastTry != null
-        && Math.signum(amountNeeded) == Math.signum(lastTry.getMWh())) {
-      oldLimitPrice = lastTry.getLimitPrice();
-      log.debug("old limit price: " + oldLimitPrice);
-    }
-
-    // set price between oldLimitPrice and maxPrice, according to number of
-    // remaining chances we have to get what we need.
-    double newLimitPrice = minPrice; // default value
-    int current = timeslotRepo.currentSerialNumber();
-    int remainingTries = (timeslot - current
-                          - Competition.currentCompetition().getDeactivateTimeslotsAhead());
-    log.debug("remainingTries: " + remainingTries);
-    if (remainingTries > 0) {
-      double range = (minPrice - oldLimitPrice) * 2.0 / (double)remainingTries;
-      log.debug("oldLimitPrice=" + oldLimitPrice + ", range=" + range);
-      double computedPrice = oldLimitPrice + randomGen.nextDouble() * range; 
-      return Math.max(newLimitPrice, computedPrice);
-    }
-    else
-      return null; // market order
-  }
+//  private Double computeLimitPrice (int timeslot,
+//                                    double amountNeeded)
+//  {
+//    log.debug("Compute limit for " + amountNeeded + 
+//              ", timeslot " + timeslot);
+//    // start with default limits
+//    Double oldLimitPrice;
+//    double minPrice;
+//    if (amountNeeded > 0.0) {
+//      // buying
+//      oldLimitPrice = buyLimitPriceMax;
+//      minPrice = buyLimitPriceMin;
+//    }
+//    else {
+//      // selling
+//      oldLimitPrice = sellLimitPriceMax;
+//      minPrice = sellLimitPriceMin;
+//    }
+//    // check for escalation
+//    Order lastTry = lastOrder.get(timeslot);
+//    if (lastTry != null)
+//      log.debug("lastTry: " + lastTry.getMWh() +
+//                " at " + lastTry.getLimitPrice());
+//    if (lastTry != null
+//        && Math.signum(amountNeeded) == Math.signum(lastTry.getMWh())) {
+//      oldLimitPrice = lastTry.getLimitPrice();
+//      log.debug("old limit price: " + oldLimitPrice);
+//    }
+//
+//    // set price between oldLimitPrice and maxPrice, according to number of
+//    // remaining chances we have to get what we need.
+//    double newLimitPrice = minPrice; // default value
+//    int current = timeslotRepo.currentSerialNumber();
+//    int remainingTries = (timeslot - current
+//                          - Competition.currentCompetition().getDeactivateTimeslotsAhead());
+//    log.debug("remainingTries: " + remainingTries);
+//    if (remainingTries > 0) {
+//      double range = (minPrice - oldLimitPrice) * 2.0 / (double)remainingTries;
+//      log.debug("oldLimitPrice=" + oldLimitPrice + ", range=" + range);
+//      double computedPrice = oldLimitPrice + randomGen.nextDouble() * range; 
+//      return Math.max(newLimitPrice, computedPrice);
+//    }
+//    else
+//      return null; // market order
+//  }
 }
