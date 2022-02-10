@@ -44,6 +44,19 @@ import org.powertac.samplebroker.interfaces.MarketManager;
 import org.powertac.samplebroker.interfaces.PortfolioManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+<<<<<<< Updated upstream
+=======
+import org.powertac.samplebroker.repos.ClearedFuturesRepo;
+import org.powertac.samplebroker.repos.ClearedRepo;
+import org.powertac.samplebroker.repos.WeatherForecastRepo;
+import org.powertac.samplebroker.repos.WeatherReportRepo;
+import org.powertac.samplebroker.services.API;
+import org.powertac.samplebroker.services.PrintService;
+import org.powertac.samplebroker.utils.MaxDifference;
+import org.powertac.util.Pair;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+>>>>>>> Stashed changes
 
 /**
  * Handles market interactions on behalf of the broker.
@@ -101,6 +114,16 @@ implements MarketManager, Initializable, Activatable
   private double[] marketMWh;
   private double[] marketPrice;
   private double meanMarketPrice = 0.0;
+<<<<<<< Updated upstream
+=======
+  private ArrayList<Double> balacingQuantity = new ArrayList<>();
+  private ArrayList<Double> balacingPrice = new ArrayList<>();
+  private int currentTimeslot;
+  private int sellingIndex;
+  private int buyingIndex = 0;
+  private double buyingOrderQuantity = 0.0;
+  private Double sellingPrice = 0.0;
+>>>>>>> Stashed changes
 
   public MarketManagerService ()
   {
@@ -143,8 +166,9 @@ implements MarketManager, Initializable, Activatable
    * Here we capture minimum order size to avoid running into the limit
    * and generating unhelpful error messages.
    */
-  public synchronized void handleMessage (Competition comp)
-  {
+  public synchronized void handleMessage(Competition comp) {
+    PrintService.getInstance().addBrokersAndConsumers(comp.getBrokers().size(), comp.getCustomers().size());
+    System.out.println("Competition");
     minMWh = Math.max(minMWh, comp.getMinimumOrderQuantity());
   }
 
@@ -241,8 +265,24 @@ implements MarketManager, Initializable, Activatable
    * from which a broker can construct approximate supply and demand curves
    * for the following timeslot.
    */
+<<<<<<< Updated upstream
   public synchronized void handleMessage (Orderbook orderbook)
   {
+=======
+  public synchronized void handleMessage(Orderbook orderbook) {
+    log.info("Order book received");
+    SortedSet<OrderbookOrder> asks = orderbook.getAsks();
+    SortedSet<OrderbookOrder> bids = orderbook.getBids();
+    double totalAmountAsks = 0;
+    double totalAmountBids = 0;
+    for (OrderbookOrder ask : asks) {
+      totalAmountAsks += ask.getMWh();
+    }
+    for (OrderbookOrder bid : bids) {
+      totalAmountBids += bid.getMWh();
+    }
+    PrintService.getInstance().addAsksAndBids(totalAmountAsks, totalAmountBids);
+>>>>>>> Stashed changes
   }
   
   /**
@@ -263,8 +303,8 @@ implements MarketManager, Initializable, Activatable
    * Receives a BalanceReport containing information about imbalance in the
    * current timeslot.
    */
-  public synchronized void handleMessage (BalanceReport report)
-  {
+  public synchronized void handleMessage(BalanceReport report) {
+    PrintService.getInstance().addImbalance(report.getNetImbalance());
   }
 
   // ----------- per-timeslot activation ---------------
@@ -276,6 +316,7 @@ implements MarketManager, Initializable, Activatable
    * @see org.powertac.samplebroker.interfaces.Activatable#activate(int)
    */
   @Override
+<<<<<<< Updated upstream
   public synchronized void activate (int timeslotIndex)
   {
     double neededKWh = 0.0;
@@ -284,6 +325,64 @@ implements MarketManager, Initializable, Activatable
       int index = (timeslot.getSerialNumber()) % broker.getUsageRecordLength();
       neededKWh = portfolioManager.collectUsage(index);
       submitOrder(neededKWh, timeslot.getSerialNumber());
+=======
+  public synchronized void activate(int timeslotIndex) {
+	    double neededMWh = 0.0;
+	    this.currentTimeslot = timeslotIndex;
+	    System.out.println("Timeslot " + timeslotRepo.currentTimeslot().getSerialNumber());
+	    applyWholeSaleStrategy();
+	  }
+  
+  /**
+   * TNE WholeSaleStrategy:
+   * call API to get predicted prices and amounts for the last 24 and next 24 timeslots
+   * submit order if price is below average price
+   * fixed factor is applied to the predicted price to build a bid (0.6 or 0.8)
+   */
+  private void applyWholeSaleStrategy() {
+    Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
+    //place first 24h orders
+    // if(this.currentTimeslot < 386){
+    //  MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
+    //   if(energyBalance == 0){
+    //     submitOrder(100, -20, this.currentTimeslot + 1);
+    //   }
+    //   else if(energyBalance > 0){
+    //     submitOrder(-energyBalance * 1.5, 25, this.currentTimeslot + 1);
+    //   }
+    //   else if(energyBalance < 0){
+    //     submitOrder(-energyBalance * 1.5, -20, this.currentTimeslot + 1);
+    //   }
+    // }
+    // else 
+    if (this.currentTimeslot == 386) {
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      Double averagePrice = averagePrice(prices);
+      for(Integer i=0; i<prices.size(); i++) {
+        if(prices.get(i) <= averagePrice) {
+          submitOrder(amounts.get(i), -prices.get(i) * 0.8, 386+i+1);
+        }
+      }      
+    }
+    else if(this.currentTimeslot > 386){
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      Double averagePrice = averagePrice(prices);
+      int lastIdx = prices.size() - 1;
+      System.out.println("Energy balance: " + energyBalance);
+      if(energyBalance == 0){
+        if(prices.get(lastIdx) <= averagePrice) {
+          submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
+        }
+      }
+      // else if(energyBalance > 0){
+      //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
+      // }
+      else if(energyBalance < 0){
+        submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
+      }
+>>>>>>> Stashed changes
     }
   }
 

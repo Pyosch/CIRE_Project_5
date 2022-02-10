@@ -15,6 +15,7 @@
  */
 package org.powertac.samplebroker;
 
+import java.util.ArrayList;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.powertac.common.BankTransaction;
@@ -24,6 +25,7 @@ import org.powertac.common.msg.DistributionReport;
 import org.powertac.samplebroker.core.BrokerPropertiesService;
 import org.powertac.samplebroker.interfaces.BrokerContext;
 import org.powertac.samplebroker.interfaces.Initializable;
+import org.powertac.samplebroker.services.PrintService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -37,29 +39,41 @@ implements Initializable
 {
   static private Logger log = LogManager.getLogger(ContextManagerService.class);
 
-  @Autowired
-  private BrokerPropertiesService propertiesService;
-
   BrokerContext master;
+  
 
   // current cash balance
   private double cash = 0;
   
 
-//  @SuppressWarnings("unchecked")
+  private ArrayList<Double> cashArray = new ArrayList<>();
+
+  // @SuppressWarnings("unchecked")
   @Override
-  public void initialize (BrokerContext broker)
-  {
+  public void initialize(BrokerContext broker) {
+    if (!PrintService.getInstance().isInitialized()) {
+      PrintService.getInstance().startCSV();
+      Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+
+        @Override
+        public void run() {
+          PrintService.getInstance().printData();
+          System.out.println("printData() is called.");
+        }
+      }));
+    }else {
+    	System.out.println("not successful starting printer");
+    }
+
     master = broker;
-    propertiesService.configureMe(this);
-// --- no longer needed ---
-//    for (Class<?> clazz: Arrays.asList(BankTransaction.class,
-//                                       CashPosition.class,
-//                                       DistributionReport.class,
-//                                       Competition.class,
-//                                       java.util.Properties.class)) {
-//      broker.registerMessageHandler(this, clazz);
-//    }    
+    // --- no longer needed ---
+    // for (Class<?> clazz: Arrays.asList(BankTransaction.class,
+    // CashPosition.class,
+    // DistributionReport.class,
+    // Competition.class,
+    // java.util.Properties.class)) {
+    // broker.registerMessageHandler(this, clazz);
+    // }
   }
 
   // -------------------- message handlers ---------------------
@@ -74,13 +88,14 @@ implements Initializable
   public void handleMessage (BankTransaction btx)
   {
     // TODO - handle this
+    log.info("Bank transaction: " + btx.toString());
   }
 
   /**
    * CashPosition updates our current bank balance.
    */
-  public void handleMessage (CashPosition cp)
-  {
+  public void handleMessage(CashPosition cp) {
+    cashArray.add(cp.getBalance());
     cash = cp.getBalance();
     log.info("Cash position: " + cash);
   }
@@ -89,9 +104,13 @@ implements Initializable
    * DistributionReport gives total consumption and production for the timeslot,
    * summed across all brokers.
    */
-  public void handleMessage (DistributionReport dr)
-  {
-    // TODO - use this data
+  public void handleMessage(DistributionReport dr) {
+    PrintService.getInstance().addDistributionReport(dr.getTimeslot(), dr.getTotalProduction(),
+        dr.getTotalConsumption());
+    // System.out.println("For timeslot "+ dr.getTimeslot() +" \n Consumption: "+
+    // dr.getTotalConsumption() + "\n Production: "+dr.getTotalProduction());
+    // // TODO - use this data
+    // log.info("Distribution Report: " + dr.toString());
   }
   
   /**
@@ -102,13 +121,14 @@ implements Initializable
   public void handleMessage (Competition comp)
   {
     // TODO - process competition properties
+    log.info("Competition Properties: " + comp.toString());
   }
 
   /**
    * Receives the server configuration properties.
    */
-  public void handleMessage (java.util.Properties serverProps)
-  {
+  public void handleMessage(java.util.Properties serverProps) {
     // TODO - adapt to the server setup.
+    log.info("Server props: " + serverProps.toString());
   }
 }
