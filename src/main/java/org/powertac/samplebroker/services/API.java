@@ -31,12 +31,7 @@ public class API {
     private ClearedFuturesRepo clearedFuturesRepo = new ClearedFuturesRepo();
 
     private Gson gson = new Gson();
-    
-    /**
-     * Method of the API that calls the python script to predict amounts and prices for the current timeslot
-     * what are the inputs (data?)?
-     * 
-     */
+
     private PredictionResponse getPrediction(Integer timeslot, String url) {
         String data = buildPredictionData(timeslot-1);
         CloseableHttpClient httpClient = HttpClients.createDefault();
