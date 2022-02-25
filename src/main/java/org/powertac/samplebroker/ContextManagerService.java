@@ -66,14 +66,6 @@ implements Initializable
     }
 
     master = broker;
-    // --- no longer needed ---
-    // for (Class<?> clazz: Arrays.asList(BankTransaction.class,
-    // CashPosition.class,
-    // DistributionReport.class,
-    // Competition.class,
-    // java.util.Properties.class)) {
-    // broker.registerMessageHandler(this, clazz);
-    // }
   }
 
   // -------------------- message handlers ---------------------

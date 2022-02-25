@@ -372,6 +372,7 @@ implements MarketManager, Initializable, Activatable
     // else 
     if (this.currentTimeslot == 386) {
       ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      System.out.println("Prices:" +prices);
       ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
       Double averagePrice = averagePrice(prices);
       for(Integer i=0; i<prices.size(); i++) {

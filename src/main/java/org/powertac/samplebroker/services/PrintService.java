@@ -15,6 +15,8 @@ import org.powertac.samplebroker.repos.WeatherForecastRepo;
 import org.powertac.samplebroker.repos.WeatherReportRepo;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat; 
+
 @Service
 public class PrintService {
 
@@ -55,7 +57,10 @@ public class PrintService {
 
     public void startCSV() {
         try {
-            FileWriter writer = new FileWriter(new Date(System.currentTimeMillis()).toString() + "_data.csv", true);
+            Date date = new Date();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss") ;
+            String strDate = dateFormat.format(date);
+            FileWriter writer = new FileWriter(strDate + "_data.csv", true); //new Date(System.currentTimeMillis()).toString()
             out = new BufferedWriter(writer);
             // let t be the current timeslot
             // CA24 - Cleared Amount for timeslot t - 24
