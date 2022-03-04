@@ -38,7 +38,8 @@ public class API {
         HttpPost httpPost = new HttpPost(url);
         httpPost.setHeader("Content-type", "application/json");
         try {
-            StringEntity stringEntity = new StringEntity(data);
+        	System.out.println(data);
+        	StringEntity stringEntity = new StringEntity(data);
             httpPost.setEntity(stringEntity);
 
             CloseableHttpResponse response = httpClient.execute(httpPost);
