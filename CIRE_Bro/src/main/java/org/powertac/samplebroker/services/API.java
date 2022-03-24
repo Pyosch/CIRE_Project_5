@@ -34,6 +34,7 @@ public class API {
 
     private PredictionResponse getPrediction(Integer timeslot, String url) {
         String data = buildPredictionData(timeslot-1);
+//        System.out.println("Argument: " + data);
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpPost httpPost = new HttpPost(url);
         httpPost.setHeader("Content-type", "application/json");
@@ -61,48 +62,48 @@ public class API {
         sb.append(i % 168 + ","); 	//Weekday
         
         // CIRE feature set
-//        for (int j = 0; j < 24; j++) {
-//            sb.append(clearedFuturesRepo.findById(i + j).getQuantity().toString() + ",");	// CA_H-1
-//            sb.append(clearedFuturesRepo.findById(i + j).getMeanPrice().toString() + ",");	// CP_H-1
-//        }
-//        for (int j = 0; j < 24; j++) {
-//            sb.append(clearedFuturesRepo.findById(i + j - 24).getQuantity().toString() + ",");	// CA_D-1
-//            sb.append(clearedFuturesRepo.findById(i + j - 24).getMeanPrice().toString() + ",");	// CP_D-1
-//        }
-//        for (int j = 0; j < 24; j++) {
-//            sb.append(clearedFuturesRepo.findById(i + j - 168).getQuantity().toString() + ",");		// CA_W-1
-//            if (j < 23) {
-//            	sb.append(clearedFuturesRepo.findById(i + j - 168).getMeanPrice().toString() + ",");	// CP_W-1
-//            } else {
-//            	sb.append(clearedFuturesRepo.findById(i + j - 168).getMeanPrice().toString());			// CP_W-1
-//            }
-//            
-//        }
-
+        for (int j = 0; j < 24; j++) {
+            sb.append(clearedFuturesRepo.findById(i + j).getQuantity().toString() + ",");	// CA_H-1
+            sb.append(clearedFuturesRepo.findById(i + j).getMeanPrice().toString() + ",");	// CP_H-1
+        }
+        for (int j = 0; j < 24; j++) {
+            sb.append(clearedFuturesRepo.findById(i + j - 24).getQuantity().toString() + ",");	// CA_D-1
+            sb.append(clearedFuturesRepo.findById(i + j - 24).getMeanPrice().toString() + ",");	// CP_D-1
+        }
+        for (int j = 0; j < 24; j++) {
+            sb.append(clearedFuturesRepo.findById(i + j - 168).getQuantity().toString() + ",");		// CA_W-1
+            if (j < 23) {
+            	sb.append(clearedFuturesRepo.findById(i + j - 168).getMeanPrice().toString() + ",");	// CP_W-1
+            } else {
+            	sb.append(clearedFuturesRepo.findById(i + j - 168).getMeanPrice().toString());			// CP_W-1
+            }
+            
+        }
         
     	// TNE feature set
-        for (int j = 24; j > 0; j--) {
-            sb.append(clearedFuturesRepo.findById(i - j).getQuantity().toString() + ",");	// CA	Cleared Amount for timeslot i - j
-            sb.append(clearedFuturesRepo.findById(i - j).getMeanPrice().toString() + ",");	// CP	Cleared Price for timeslot i - j
-            sb.append(weatherReportRepo.findById(i - j).getTemperature() + ",");			// T	Temperature for timeslot i - j
-            sb.append(weatherReportRepo.findById(i - j).getWindSpeed() + ",");				// WS	Windspeed for timeslot i - j
-        }
-        sb.append(weatherReportRepo.findById(i).getTemperature() + ",");					// CT	Current Temperature
-        sb.append(weatherReportRepo.findById(i).getWindSpeed() + ",");        				// CWS	Current Windspeed
-        ArrayList<PartialCleared> partialCleared = clearedRepo.findById(i-1).getFutureCleared(); 
-        for (int k = 0; k < 24; k++) {
-            sb.append(partialCleared.get(k).getQuantity() + ",");							// PCA - Partial Cleared Amount
-            sb.append(partialCleared.get(k).getMeanPrice() + ",");							// PCP - Partial Cleared Price
-        }
-
-        for (int j = 1; j <= 24; j++) {
-            sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getTemperature() + ",");	// TF	Temperature forecast
-            if (j < 24) {
-                sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getWindSpeed() + ",");	// WSF	Windspeed forecast
-            } else {
-                sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getWindSpeed());
-            }
-        }
+//        for (int j = 24; j > 0; j--) {
+//            sb.append(clearedFuturesRepo.findById(i - j).getQuantity().toString() + ",");	// CA	Cleared Amount for timeslot i - j
+//            sb.append(clearedFuturesRepo.findById(i - j).getMeanPrice().toString() + ",");	// CP	Cleared Price for timeslot i - j
+//            sb.append(weatherReportRepo.findById(i - j).getTemperature() + ",");			// T	Temperature for timeslot i - j
+//            sb.append(weatherReportRepo.findById(i - j).getWindSpeed() + ",");				// WS	Windspeed for timeslot i - j
+//        }
+//        sb.append(weatherReportRepo.findById(i).getTemperature() + ",");					// CT	Current Temperature
+//        sb.append(weatherReportRepo.findById(i).getWindSpeed() + ",");        				// CWS	Current Windspeed
+//        ArrayList<PartialCleared> partialCleared = clearedRepo.findById(i-1).getFutureCleared(); 
+//        for (int k = 0; k < 24; k++) {
+//            sb.append(partialCleared.get(k).getQuantity() + ",");							// PCA - Partial Cleared Amount
+//            sb.append(partialCleared.get(k).getMeanPrice() + ",");							// PCP - Partial Cleared Price
+//        }
+//
+//        for (int j = 1; j <= 24; j++) {
+//            sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getTemperature() + ",");	// TF	Temperature forecast
+//            if (j < 24) {
+//                sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getWindSpeed() + ",");	// WSF	Windspeed forecast
+//            } else {
+//                sb.append(weatherForecastRepo.findById(new PredictionKey(i, i + j)).getWindSpeed());
+//            }
+//        }
+        
         sb.append("]]}");
         return sb.toString();
     }

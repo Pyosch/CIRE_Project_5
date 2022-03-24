@@ -356,8 +356,8 @@ implements MarketManager, Initializable, Activatable
    */
   
 //  CIRE feature set
-//  private void applyWholeSaleStrategy() {
-//    Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
+  private void applyWholeSaleStrategy() {
+    Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
 ////   place first 24h orders
 //     if(this.currentTimeslot < 554){
 ////      MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
@@ -372,87 +372,86 @@ implements MarketManager, Initializable, Activatable
 //       }
 //     }
 //     else 
-//    if (this.currentTimeslot == 554) {
-//      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-//      System.out.println("Prices:" + prices);
-//      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-//      System.out.println("Amounts:" + amounts);
-//      Double averagePrice = averagePrice(prices);
-//      for(Integer i=0; i<prices.size(); i++) {
-//        if(prices.get(i) <= averagePrice) {
-//          submitOrder(amounts.get(i), -prices.get(i) * 0.8, 554+i+1);
-//        }
-//      }      
-//    }
-//    else if(this.currentTimeslot > 554){
-//      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-//      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-//      Double averagePrice = averagePrice(prices);
-//      int lastIdx = prices.size() - 1;
-//      System.out.println("Energy balance: " + energyBalance);
-//      if(energyBalance == 0){
-//        if(prices.get(lastIdx) <= averagePrice) {
-//          submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
-//        }
-//      }
-//      // else if(energyBalance > 0){
-//      //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
-//      // }
-//      else if(energyBalance < 0){
-//        submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
-//      }
-//    }
-//  }
+    if (this.currentTimeslot == 554) {
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      System.out.println("Prices:" + prices);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      System.out.println("Amounts:" + amounts);
+      Double averagePrice = averagePrice(prices);
+      for(Integer i=0; i<prices.size(); i++) {
+        if(prices.get(i) <= averagePrice) {
+          submitOrder(amounts.get(i), -prices.get(i) * 0.8, 554+i+1);
+        }
+      }      
+    }
+    else if(this.currentTimeslot > 554){
+      ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+      ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+      Double averagePrice = averagePrice(prices);
+      int lastIdx = prices.size() - 1;
+      System.out.println("Energy balance: " + energyBalance);
+      if(energyBalance == 0){
+        if(prices.get(lastIdx) <= averagePrice) {
+          submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
+        }
+      }
+      // else if(energyBalance > 0){
+      //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
+      // }
+      else if(energyBalance < 0){
+        submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
+      }
+    }
+  }
   
 // TNE feature set
-  private void applyWholeSaleStrategy() {
-	Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
-// place first 24h orders
-//	if(this.currentTimeslot < 386){
-////    MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
-//		if(energyBalance == 0){
-//	       submitOrder(100, -20, this.currentTimeslot + 1);
-//	     }
-//	     else if(energyBalance > 0){
-//	       submitOrder(-energyBalance * 1.5, 25, this.currentTimeslot + 1);
-//	     }
-//	     else if(energyBalance < 0){
-//	       submitOrder(-energyBalance * 1.5, -20, this.currentTimeslot + 1);
-//	     }
-//	   }
-//	   else 
-	  if (this.currentTimeslot == 386) {
-	    ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-	    System.out.println("Prices:" +prices);
-	    ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-	    Double averagePrice = averagePrice(prices);
-	    for(Integer i=0; i<prices.size(); i++) {
-	      if(prices.get(i) <= averagePrice) {
-	        submitOrder(amounts.get(i), -prices.get(i) * 0.8, 386+i+1);
-	      }
-	    }      
-	  }
-	  else if(this.currentTimeslot > 386){
-	    ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
-	    System.out.println("Prices:" +prices);
-	    ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
-	    Double averagePrice = averagePrice(prices);
-	    int lastIdx = prices.size() - 1;
-	    System.out.println("Energy balance: " + energyBalance);
-	    if(energyBalance == 0){
-	      if(prices.get(lastIdx) <= averagePrice) {
-	        submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
-	      }
-	    }
-	    // else if(energyBalance > 0){
-	    //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
-	    // }
-	    else if(energyBalance < 0){
-	      submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
-	    }
-	  }
-	}
-  
+//  private void applyWholeSaleStrategy() {
+//	Double energyBalance = broker.getBroker().findMarketPositionByTimeslot(this.currentTimeslot).getOverallBalance();
+//// place first 24h orders
+////	if(this.currentTimeslot < 386){
+//////    MUST FIND A STRATEGY FOR FIRST 24 BECAUSE OF RETAIL TARIFFS
+////		if(energyBalance == 0){
+////	       submitOrder(100, -20, this.currentTimeslot + 1);
+////	     }
+////	     else if(energyBalance > 0){
+////	       submitOrder(-energyBalance * 1.5, 25, this.currentTimeslot + 1);
+////	     }
+////	     else if(energyBalance < 0){
+////	       submitOrder(-energyBalance * 1.5, -20, this.currentTimeslot + 1);
+////	     }
+////	   }
+////	   else 
+//	  if (this.currentTimeslot == 386) {
+//	    ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+//	    System.out.println("Prices:" +prices);
+//	    ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+//	    Double averagePrice = averagePrice(prices);
+//	    for(Integer i=0; i<prices.size(); i++) {
+//	      if(prices.get(i) <= averagePrice) {
+//	        submitOrder(amounts.get(i), -prices.get(i) * 0.8, 386+i+1);
+//	      }
+//	    }      
+//	  }
+//	  else if(this.currentTimeslot > 386){
+//	    ArrayList<Double> prices = api.predictPrices(this.currentTimeslot);
+//	    System.out.println("Prices:" +prices);
+//	    ArrayList<Double> amounts = api.predictAmounts(this.currentTimeslot);
+//	    Double averagePrice = averagePrice(prices);
+//	    int lastIdx = prices.size() - 1;
+//	    System.out.println("Energy balance: " + energyBalance);
+//	    if(energyBalance == 0){
+//	      if(prices.get(lastIdx) <= averagePrice) {
+//	        submitOrder(amounts.get(lastIdx), -prices.get(lastIdx) * 0.6, this.currentTimeslot + 24);
+//	      }
+//	    }
+//	    // else if(energyBalance > 0){
+//	    //   submitOrder(-energyBalance * 2, prices.get(0) * 0.8, this.currentTimeslot + 1);
+//	    // }
+//	    else if(energyBalance < 0){
+//	      submitOrder(-energyBalance * 2, -prices.get(0), this.currentTimeslot + 1);
+//	    }
+//	  }
+//	}
   
   private Double averagePrice(ArrayList<Double> prices) {
       Double sum = 0.0;
